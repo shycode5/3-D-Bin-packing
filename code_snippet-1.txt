@@ -1,0 +1,28 @@
+{
+  "Candidates": [
+    {
+      "Width": 200,
+      "Length": 140,
+      "Height": 100
+    },
+    {
+      "Width": 100,
+      "Length": 80,
+      "Height": 80
+    },
+    {
+      "Width": 120,
+      "Length": 100,
+      "Height": 40
+    }
+  ],
+  "Items": [
+    {
+      "Width": 90,
+      "Length": 70,
+      "Height": 15,
+      "TagOrColor": "blue",
+      "Quantity": 5
+    }
+  ]
+}

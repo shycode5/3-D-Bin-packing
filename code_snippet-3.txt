@@ -1,0 +1,49 @@
+Candidates*	[
+maxItems: 20
+minItems: 1
+Container{
+Height*	integer
+maximum: 19999
+minimum: 1
+Width*	integer
+maximum: 19999
+minimum: 1
+Length*	integer
+maximum: 19999
+minimum: 1
+MaxItems	integer
+MaxWeight	integer
+maximum: 100000000
+minimum: 1
+default: 0
+}]
+Item	{
+Height*	integer
+maximum: 19999
+minimum: 1
+Width*	integer
+maximum: 19999
+minimum: 1
+Length*	integer
+maximum: 19999
+minimum: 1
+KeepTop	boolean
+default: false
+KeepBottom	boolean
+default: false
+NoTop	boolean
+default: false
+Weight	integer
+maximum: 100000000
+minimum: 1
+default: 0
+}
+Speed	string
+default: Fast
+Enum:
+[ Fast, VeryFast ]
+CalculationMode	string
+default: MinimizeLength
+Enum:
+[ MinimizeLength, MinimizeHeight ]
+}

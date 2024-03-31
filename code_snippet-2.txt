@@ -1,0 +1,54 @@
+"SelectedContainer": {
+    "Width": 1000,
+    "Length": 400,
+    "Height": 100
+  },
+  "ItemsNotPut": [
+    {
+      "Width": 100,
+      "Length": 100,
+      "Height": 100,
+      "TagOrColor": "blue",
+      "Quantity": 1
+    },
+    {
+      "Width": 100,
+      "Length": 200,
+      "Height": 300,
+      "TagOrColor": "green",
+      "Quantity": 1
+    }
+  ],
+  "ItemsPut": [
+    {
+      "Item": {
+        "Width": 100,
+        "Length": 100,
+        "Height": 100,
+        "TagOrColor": "blue",
+        "Quantity": 1
+      },
+      "Coord": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "ContainerIndex": 0
+    },
+    {
+      "Item": {
+        "Width": 100,
+        "Length": 200,
+        "Height": 300,
+        "TagOrColor": "green",
+        "Quantity": 1
+      },
+      "Coord": {
+        "X": 100,
+        "Y": 100,
+        "Z": 100
+      },
+      "ContainerIndex": 0
+    }
+  ]
+}
