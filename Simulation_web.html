@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Box Packing Visualization</title>
+  <script type="module">
+    import * as THREE from "https://cdn.skypack.dev/three@0.130.0/build/three.module.js";
+    import { GLTFLoader } from "https://cdn.skypack.dev/three@0.130.0/examples/jsm/loaders/GLTFLoader.js";
+
+    const GameManager = {};
+    GameManager.sounds = {};
+    GameManager.packedBoxes = [];
+
+    // Function to create a 3D box representation
+    function createBox(box) {
+      const geometry = new THREE.BoxBufferGeometry(box.length, box.height, box.width);
+      const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(box.xPos + box.length / 2, box.zPos + box.height / 2, -box.yPos - box.width / 2); // Adjust for the 3D coordinate system
+      return mesh;
+    }
+
+    // Function to calculate the overlap area between two boxes
+    function calculateOverlapArea(box1, box2) {
+      const xOverlap = Math.max(0, Math.min(box1.xPos + box1.length, box2.xPos + box2.length) - Math.max(box1.xPos, box2.xPos));
+      const yOverlap = Math.max(0, Math.min(box1.yPos + box1.width, box2.yPos + box2.width) - Math.max(box1.yPos, box2.yPos));
+      const zOverlap = Math.max(0, Math.min(box1.zPos + box1.height, box2.zPos + box2.height) - Math.max(box1.zPos, box2.zPos));
+      return xOverlap * yOverlap * zOverlap;
+    }
+
+    // Function to check if a box can fit without overlapping with previously packed boxes
+    function canFit(box, xPos, yPos, zPos, packedBoxes) {
+      for (const packedBox of packedBoxes) {
+        const boxIndex = packedBox.index;
+        const boxXEnd = packedBoxes[boxIndex].xPos + packedBoxes[boxIndex].length;
+        const boxYEnd = packedBoxes[boxIndex].yPos + packedBoxes[boxIndex].width;
+        const boxZEnd = packedBoxes[boxIndex].zPos + packedBoxes[boxIndex].height;
+
+        if (!(xPos >= boxXEnd || box.xPos >= boxXEnd ||
+              yPos >= boxYEnd || box.yPos >= boxYEnd ||
+              zPos >= boxZEnd || box.zPos >= boxZEnd)) {
+          return false; // Overlapping with a previously placed box
+        }
+      }
+      return true; // Box can fit without overlapping
+    }
+
+    // Function to check if a box is stable on top of previously packed boxes
+    function isStable(box, packedBoxes) {
+      for (const packedBox of packedBoxes) {
+        const lowerBox = packedBox;
+        const lowerBoxXEnd = lowerBox.xPos + lowerBox.length;
+        const lowerBoxYEnd = lowerBox.yPos + lowerBox.width;
+        const lowerBoxZEnd = lowerBox.zPos + lowerBox.height;
+
+        if (box.xPos >= lowerBox.xPos && box.xPos + box.length <= lowerBoxXEnd &&
+            box.yPos >= lowerBox.yPos && box.yPos + box.width <= lowerBoxYEnd &&
+            box.zPos <= lowerBoxZEnd && box.zPos + box.height >= lowerBoxZEnd - 2) {
+          return true; // Stable on top of a previously placed box
+        }
+      }
+      return false; // Not stable on top of any previously placed box
+    }
+
+    // Function to pack the next box
+    GameManager.packNextBox = function () {
+      const box = GameManager.boxes[GameManager.numPackedBoxes];
+      let maxOverlapArea = 0;
+      let bestPosition = null;
+
+      for (let xPos = 0; xPos <= GameManager.palletLength - box.length; xPos++) {
+        for (let yPos = 0; yPos <= GameManager.palletWidth - box.width; yPos++) {
+          let zPos = 0;
+          while (true) {
+            if (zPos + box.height > GameManager.palletHeight) break; // Box exceeds pallet height
+
+            if (canFit(box, xPos, yPos, zPos, GameManager.packedBoxes)) {
+              const overlapArea = GameManager.packedBoxes.reduce((sum, packedBox) => sum + calculateOverlapArea(box, packedBox), 0);
+              if (overlapArea > maxOverlapArea) {
+                maxOverlapArea = overlapArea;
+                bestPosition = { xPos, yPos, zPos };
+              }
+              break;
+            }
+
+            zPos++;
+          }
+        }
+      }
+
+      if (bestPosition) {
+        box.xPos = bestPosition.xPos;
+        box.yPos = bestPosition.yPos;
+        box.zPos = bestPosition.zPos;
+        GameManager.packedBoxes.push(box);
+        const boxMesh = createBox(box);
+        GameManager.scene.add(boxMesh);
+        GameManager.numPackedBoxes++;
+      } else {
+        GameManager.endGame();
+      }
+    };
+
+    // ... (previously defined functions)
+
+    // Game initialization
+    GameManager.init = function () {
+      const palletLength = 104;
+      const palletWidth = 97;
+      const palletHeight = 84;
+      GameManager.palletLength = palletLength;
+      GameManager.palletWidth = palletWidth;
+      GameManager.palletHeight = palletHeight;
+      GameManager.numPackedBoxes = 0;
+      GameManager.packedBoxes = [];
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      const loader = new GLTFLoader();
+
+      loader.load("pallet.glb", function (gltf) {
+        const pallet = gltf.scene;
+        scene.add(pallet);
+      });
+
+      camera.position.z = 200;
+      GameManager.scene = scene;
+      GameManager.camera = camera;
+      GameManager.renderer = renderer;
+      GameManager.loader = loader;
+
+      GameManager.animate();
+    };
+
+    // Game animation loop
+    GameManager.animate = function () {
+      requestAnimationFrame(GameManager.animate);
+      GameManager.renderer.render(GameManager.scene, GameManager.camera);
+    };
+
+    GameManager.init();
+  </script>
+</head>
+<body>
+</body>
+</html>
