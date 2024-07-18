@@ -1,0 +1,218 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    int length, width, height, xPos, yPos, zPos;
+} Box;
+
+typedef struct {
+    int length, width, height;
+    int currentHeight;
+} Bin;
+
+int max(int a, int b) { return (a > b) ? a : b; }
+int min(int a, int b) { return (a < b) ? a : b; }
+
+int calculateOverlapArea(Box box1, Box box2) {
+    int xOverlap = max(0, min(box1.xPos + box1.length, box2.xPos + box2.length) - max(box1.xPos, box2.xPos));
+    int yOverlap = max(0, min(box1.yPos + box1.width, box2.yPos + box2.width) - max(box1.yPos, box2.yPos));
+    int zOverlap = max(0, min(box1.zPos + box1.height, box2.zPos + box2.height) - max(box1.zPos, box2.zPos));
+    return xOverlap * yOverlap * zOverlap;
+}
+
+int canFit(Box box, int xPos, int yPos, int zPos, Box* boxes, int numPackedBoxes) {
+    for (int j = 0; j < numPackedBoxes; j++) {
+        if (!(xPos >= boxes[j].xPos + boxes[j].length || xPos + box.length <= boxes[j].xPos ||
+              yPos >= boxes[j].yPos + boxes[j].width || yPos + box.width <= boxes[j].yPos ||
+              zPos >= boxes[j].zPos + boxes[j].height || zPos + box.height <= boxes[j].zPos)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int compareBoxes(const void* a, const void* b) {
+    Box* boxA = (Box*)a;
+    Box* boxB = (Box*)b;
+    int volumeA = boxA->length * boxA->width * boxA->height;
+    int volumeB = boxB->length * boxB->width * boxB->height;
+    return volumeB - volumeA;
+}
+
+void bestFitDecreasing(Box* boxes, int numBoxes, Bin* bin) {
+    qsort(boxes, numBoxes, sizeof(Box), compareBoxes);
+
+    Box packedBoxes[numBoxes];
+    int numPackedBoxes = 0;
+
+    for (int i = 0; i < numBoxes; i++) {
+        Box box = boxes[i];
+        int stacked = 0;
+
+        for (int orientation = 0; orientation < 3; orientation++) {
+            int temp = box.length;
+            box.length = box.width;
+            box.width = box.height;
+            box.height = temp;
+
+            for (int xPos = 0; xPos <= bin->length - box.length; xPos++) {
+                for (int yPos = 0; yPos <= bin->width - box.width; yPos++) {
+                    for (int zPos = 0; zPos <= bin->height - box.height; zPos++) {
+                        if (canFit(box, xPos, yPos, zPos, packedBoxes, numPackedBoxes)) {
+                            box.xPos = xPos;
+                            box.yPos = yPos;
+                            box.zPos = zPos;
+                            packedBoxes[numPackedBoxes++] = box;
+                            stacked = 1;
+                            break;
+                        }
+                    }
+                    if (stacked) break;
+                }
+                if (stacked) break;
+            }
+            if (stacked) break;
+        }
+
+        if (!stacked) {
+            printf("Box %d could not be packed.\n", i);
+        }
+    }
+
+    for (int i = 0; i < numPackedBoxes; i++) {
+        printf("Box %d: Position (%d, %d, %d)\n", i, packedBoxes[i].xPos, packedBoxes[i].yPos, packedBoxes[i].zPos);
+    }
+}
+
+#define POPULATION_SIZE 100
+#define GENERATIONS 1000
+
+typedef struct {
+    Box* boxes;
+    int numBoxes;
+    int fitness;
+} Individual;
+
+void initializePopulation(Individual* population, Box* boxes, int numBoxes) {
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        population[i].boxes = (Box*)malloc(numBoxes * sizeof(Box));
+        memcpy(population[i].boxes, boxes, numBoxes * sizeof(Box));
+        population[i].numBoxes = numBoxes;
+        population[i].fitness = 0;
+    }
+}
+
+int evaluateFitness(Individual* individual, Bin* bin) {
+    bestFitDecreasing(individual->boxes, individual->numBoxes, bin);
+    int volumeUsed = 0;
+    for (int i = 0; i < individual->numBoxes; i++) {
+        volumeUsed += individual->boxes[i].length * individual->boxes[i].width * individual->boxes[i].height;
+    }
+    return volumeUsed;
+}
+
+void selectParents(Individual* population, Individual* parents) {
+    // Tournament selection
+    int best1 = rand() % POPULATION_SIZE;
+    int best2 = rand() % POPULATION_SIZE;
+    for (int i = 0; i < 5; i++) {
+        int candidate = rand() % POPULATION_SIZE;
+        if (population[candidate].fitness > population[best1].fitness) {
+            best1 = candidate;
+        }
+        candidate = rand() % POPULATION_SIZE;
+        if (population[candidate].fitness > population[best2].fitness) {
+            best2 = candidate;
+        }
+    }
+    parents[0] = population[best1];
+    parents[1] = population[best2];
+}
+
+void crossover(Individual* parent1, Individual* parent2, Individual* offspring) {
+    int crossoverPoint = rand() % parent1->numBoxes;
+    for (int i = 0; i < crossoverPoint; i++) {
+        offspring->boxes[i] = parent1->boxes[i];
+    }
+    for (int i = crossoverPoint; i < parent2->numBoxes; i++) {
+        offspring->boxes[i] = parent2->boxes[i];
+    }
+}
+
+void mutate(Individual* individual) {
+    int mutationPoint = rand() % individual->numBoxes;
+    Box* box = &individual->boxes[mutationPoint];
+    int temp = box->length;
+    box->length = box->width;
+    box->width = box->height;
+    box->height = temp;
+}
+
+void geneticAlgorithm(Box* boxes, int numBoxes, Bin* bin) {
+    Individual population[POPULATION_SIZE];
+    initializePopulation(population, boxes, numBoxes);
+
+    for (int generation = 0; generation < GENERATIONS; generation++) {
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            population[i].fitness = evaluateFitness(&population[i], bin);
+        }
+
+        Individual parents[2];
+        selectParents(population, parents);
+
+        Individual offspring;
+        offspring.boxes = (Box*)malloc(numBoxes * sizeof(Box));
+        offspring.numBoxes = numBoxes;
+
+        crossover(&parents[0], &parents[1], &offspring);
+        mutate(&offspring);
+
+        // Replace the worst individual in the population with the new offspring
+        int worstIndex = 0;
+        for (int i = 1; i < POPULATION_SIZE; i++) {
+            if (population[i].fitness < population[worstIndex].fitness) {
+                worstIndex = i;
+            }
+        }
+        population[worstIndex] = offspring;
+    }
+
+    Individual bestIndividual = population[0];
+    for (int i = 1; i < POPULATION_SIZE; i++) {
+        if (population[i].fitness > bestIndividual.fitness) {
+            bestIndividual = population[i];
+        }
+    }
+
+    bestFitDecreasing(bestIndividual.boxes, bestIndividual.numBoxes, bin);
+}
+
+int main() {
+    Bin bin = {104, 97, 84, 0};
+
+    Box boxes[] = {
+        {52, 60, 42, 0, 0, 0},
+        {52, 60, 42, 0, 0, 0},
+        {36, 46, 84, 0, 0, 0},
+        {26, 36, 84, 0, 0, 0},
+        {25, 20, 25, 0, 0, 0},
+        {26, 36, 21, 0, 0, 0},
+        {26, 36, 21, 0, 0, 0},
+        {26, 36, 21, 0, 0, 0},
+        {26, 36, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0},
+        {8, 20, 21, 0, 0, 0}
+    };
+
+    int numBoxes = sizeof(boxes) / sizeof(Box);
+
+    geneticAlgorithm(boxes, numBoxes, &bin);
+
+    return 0;
+}
+
